@@ -8,8 +8,6 @@ from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
 
 
-
-
 def upload_courses_list_file_to_s3_bucket(file_location: str, filename: str) -> None:
     """
     It takes the filename of the json file with all the courses and it will upload it to
@@ -26,3 +24,8 @@ def upload_courses_list_file_to_s3_bucket(file_location: str, filename: str) -> 
     except Exception as e:
         print(e)
         print('something went wrong')
+        
+        
+def write_data_to_json_on_disk(courses: List, file_location: str) -> None:
+    with open(file_location, 'w') as output_file:
+        json.dump(courses, output_file)
