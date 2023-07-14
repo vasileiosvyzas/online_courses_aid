@@ -30,8 +30,11 @@ repos:
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]
--   repo: https://github.com/kynan/nbstripout
-    rev: 0.6.1
+-   repo: local
     hooks:
-    -   id: nbstripout
-        files: ./notebooks/
+    -   id: jupyter-nb-clear-output
+        name: jupyter-nb-clear-output
+        files: \notebooks\.ipynb$
+        stages: [commit]
+        language: system
+        entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace
