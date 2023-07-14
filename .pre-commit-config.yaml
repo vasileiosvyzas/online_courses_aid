@@ -34,7 +34,7 @@ repos:
     hooks:
     -   id: jupyter-nb-clear-output
         name: jupyter-nb-clear-output
-        files: notebooks/*.ipynb
+        files: notebooks/.ipynb$
         stages: [commit]
         language: system
         entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace
