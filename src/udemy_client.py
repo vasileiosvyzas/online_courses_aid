@@ -44,16 +44,16 @@ class UdemyClient:
             return response.json()
 
         except requests.exceptions.HTTPError as errh:
-            print(errh)
+            print("Http Error:", errh)
             raise
         except requests.exceptions.ConnectionError as errc:
-            print(errc)
+            print("Error Connecting:", errc)
             raise
         except requests.exceptions.Timeout as errt:
-            print(errt)
+            print("Timeout Error:", errt)
             raise
         except requests.exceptions.RequestException as err:
-            print(err)
+            print("OOps: Something Else", err)
             raise
 
     def has_next_page(self, response: Dict) -> bool:
