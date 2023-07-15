@@ -1,7 +1,8 @@
 import os
-import time
+from datetime import datetime
 from typing import Dict, List
 
+import backoff
 import requests
 from dotenv import find_dotenv, load_dotenv
 from requests.auth import HTTPBasicAuth
@@ -24,6 +25,16 @@ class UdemyClient:
         self.CLIENT_ID = os.environ.get("UDEMY_CLIENT_ID")
         self.CLIENT_SECRET = os.environ.get("UDEMY_CLIENT_SECRET")
 
+    @backoff.on_exception(
+        backoff.expo,
+        (
+            requests.exceptions.Timeout,
+            requests.exceptions.RequestException,
+            requests.exceptions.HTTPError,
+        ),
+        max_tries=8,
+    )
+    @backoff.on_predicate(backoff.constant, interval=5)
     def request_data(self, url: str, current_session: Session) -> Dict:
         """Simple function that makes a get request from a url provided and returns the response
 
@@ -34,11 +45,11 @@ class UdemyClient:
         Returns:
             response: the response payload for the request
         """
-
         try:
             response = current_session.get(
                 url=url, auth=HTTPBasicAuth(self.CLIENT_ID, self.CLIENT_SECRET), timeout=10
             )
+            print(datetime.now().strftime("%H:%M:%S:%f"), flush=True)
             response.raise_for_status()
 
             return response.json()
@@ -47,8 +58,8 @@ class UdemyClient:
             print("Http Error:", errh)
             raise
         except requests.exceptions.ConnectionError as errc:
-            print("Error Connecting:", errc)
-            raise
+            print("A network connection error occurred:", str(errc))
+            raise SystemExit(errc)
         except requests.exceptions.Timeout as errt:
             print("Timeout Error:", errt)
             raise
@@ -83,8 +94,7 @@ class UdemyClient:
         TODO: decide on an appropriate page size
         """
         session = requests.Session()
-
-        courses_list_endpoint = "https://www.udemy.com/api-2.0/courses/?page_size=6"
+        courses_list_endpoint = "https://www.udemy.com/api-2.0/courses/?page_size=12"
 
         # get the list of courses available on Udemy
         response = self.request_data(url=courses_list_endpoint, current_session=session)
@@ -92,8 +102,7 @@ class UdemyClient:
         print(response)
 
         while self.has_next_page(response=response):
-            print(response["next"])
-            time.sleep(10)
+            print(f"Getting the next page {response['next']}")
             response = self.request_data(url=response["next"], current_session=session)
             courses_list.extend(response["results"])
 
@@ -130,14 +139,14 @@ class UdemyClient:
         """
 
         session = requests.Session()
-        course_curriculum_endpoint = f"https://www.udemy.com/api-2.0/courses/{course_id}/public-curriculum-items/?page_size=6"
+        course_curriculum_endpoint = f"https://www.udemy.com/api-2.0/courses/{course_id}/public-curriculum-items/?page_size=16"
 
         response = self.request_data(url=course_curriculum_endpoint, current_session=session)
         courses_curriculum = response["results"]
 
         while self.has_next_page(response=response):
+            print(f"Getting the next page {response['next']}")
             next_page = response["next"]
-            time.sleep(2)
             response = self.request_data(url=next_page, current_session=session)
             courses_curriculum.extend(response["results"])
 
