@@ -34,7 +34,7 @@ class UdemyClient:
         ),
         max_tries=8,
     )
-    @backoff.on_predicate(backoff.constant, interval=5)
+    @backoff.on_predicate(backoff.constant, interval=60, jitter=None)
     def request_data(self, url: str, current_session: Session) -> Dict:
         """Simple function that makes a get request from a url provided and returns the response
 
@@ -45,17 +45,29 @@ class UdemyClient:
         Returns:
             response: the response payload for the request
         """
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        }
+
         try:
-            response = current_session.get(
-                url=url, auth=HTTPBasicAuth(self.CLIENT_ID, self.CLIENT_SECRET), timeout=10
+            print(f"Making a request at: {datetime.now().strftime('%H:%M:%S:%f')}", flush=True)
+
+            response = requests.get(
+                url=url,
+                auth=HTTPBasicAuth(self.CLIENT_ID, self.CLIENT_SECRET),
+                timeout=30,
+                headers=headers,
             )
-            print(datetime.now().strftime("%H:%M:%S:%f"), flush=True)
             response.raise_for_status()
+
+            print(response.headers)
 
             return response.json()
 
         except requests.exceptions.HTTPError as errh:
             print("Http Error:", errh)
+            print(response.request.headers)
+            print(response)
             raise
         except requests.exceptions.ConnectionError as errc:
             print("A network connection error occurred:", str(errc))
@@ -93,8 +105,11 @@ class UdemyClient:
         TODO: implement rate limitting and retry in case of failures
         TODO: decide on an appropriate page size
         """
+
+        courses_list_endpoint = "https://www.udemy.com/api-2.0/courses/"
         session = requests.Session()
-        courses_list_endpoint = "https://www.udemy.com/api-2.0/courses/?page_size=12"
+
+        print("Calling the API for the list of courses")
 
         # get the list of courses available on Udemy
         response = self.request_data(url=courses_list_endpoint, current_session=session)
@@ -106,6 +121,7 @@ class UdemyClient:
             response = self.request_data(url=response["next"], current_session=session)
             courses_list.extend(response["results"])
 
+        print("*** Got all the courses ***")
         return courses_list
 
     def get_course_details(self, course_id: str) -> Dict:
@@ -119,12 +135,17 @@ class UdemyClient:
             Dict: A dictionary with the course details
         """
 
-        session = requests.Session()
+        # session = requests.Session()
         course_details_endpoint = f"https://www.udemy.com/api-2.0/courses/{course_id}/?fields[course]=title,headline,description,url,visible_instructors,primary_category,primary_subcategory,status_label"
 
+        print(f"Making a call for course ID: {course_id}")
+
         single_courses_details = self.request_data(
-            url=course_details_endpoint, current_session=session
+            url=course_details_endpoint, current_session=None
         )
+
+        print(f"Returning the details for course {course_id}")
+
         return single_courses_details
 
     def get_course_curriculum(self, course_id: str) -> List:
@@ -141,6 +162,7 @@ class UdemyClient:
         session = requests.Session()
         course_curriculum_endpoint = f"https://www.udemy.com/api-2.0/courses/{course_id}/public-curriculum-items/?page_size=16"
 
+        print(f"Calling the API for the curriculum of {course_id}")
         response = self.request_data(url=course_curriculum_endpoint, current_session=session)
         courses_curriculum = response["results"]
 
@@ -150,4 +172,5 @@ class UdemyClient:
             response = self.request_data(url=next_page, current_session=session)
             courses_curriculum.extend(response["results"])
 
+        print(f"Returning the entire curriculum for course {course_id}")
         return courses_curriculum
